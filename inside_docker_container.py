@@ -5,8 +5,8 @@ import sys
 
 from vision.ssd.mobilenetv1_ssd import create_mobilenetv1_ssd, create_mobilenetv1_ssd_predictor
 
-model_dir = 'models/coloredbags'
-model_dir = os.path.expanduser(model_dir)
+base_model_dir = 'models/coloredbags'
+model_dir = os.path.expanduser(base_model_dir)
 
 # find the checkpoint with the lowest loss
 model_path = ''
@@ -21,10 +21,10 @@ for file in os.listdir(model_dir):
             model_path = os.path.join(model_dir, file)
     except ValueError:
         continue
-print('found best checkpoint with loss {:f} ({:s})'.format(best_loss, input))
+print('found best checkpoint with loss {:f} ({:s})'.format(best_loss, model_path))
 
 # Load Detection Model
-label_path = model_dir + 'labels.txt'
+label_path = base_model_dir + '/labels.txt'
 class_names = [name.strip() for name in open(label_path).readlines()]
 net = create_mobilenetv1_ssd(len(class_names), is_test=True)
 net.load(model_path)
@@ -56,7 +56,7 @@ for i in range(boxes.size(0)):
 now = datetime.now()
 dt_format = "%Y_%m_%d_%H_%M_%S"
 dt_string = now.strftime(dt_format)
-path = f"/jetson-inference/data/coloredbags/classification_results_{dt_string}.jpg"
+path = f"/jetson-inference/data/coloredbags/detection_results_{dt_string}.jpg"
 cv2.imwrite(path, orig_image)
 print(f"Found {len(probs)} objects. The output image is {path}")
 
@@ -139,12 +139,12 @@ for i in range(len(complete_tuple_box_label_prob_list)):
         else:
             result_label_array.append(current_detected_label)
 
-result_path = '/home/jetson-inference/data/' + 'bags_trial.txt'
+result_path = '/jetson-inference/data/' + 'bags_trial.txt'
 if os.path.exists(result_path):
     os.remove(result_path)
 
 with open(result_path, 'w') as filehandle:
     filehandle.write('\n'.join(result_label_array))
-
+print('Job Success')
 
 
