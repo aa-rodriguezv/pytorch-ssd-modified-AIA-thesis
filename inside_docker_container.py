@@ -1,10 +1,10 @@
 import cv2
-import datetime
 import os
-import sys
 
+from datetime import datetime
 from vision.ssd.mobilenetv1_ssd import create_mobilenetv1_ssd, create_mobilenetv1_ssd_predictor
 
+print(datetime.now())
 base_model_dir = 'models/coloredbags'
 model_dir = os.path.expanduser(base_model_dir)
 
@@ -29,12 +29,15 @@ class_names = [name.strip() for name in open(label_path).readlines()]
 net = create_mobilenetv1_ssd(len(class_names), is_test=True)
 net.load(model_path)
 predictor = create_mobilenetv1_ssd_predictor(net, candidate_size=200)
+print('Loaded Model Successfully')
 
 cam_port = 0
 cam = cv2.VideoCapture(cam_port)
+print('Camera Connected')
 
 # reading the input using the camera
 result, orig_image = cam.read()
+print('Took Picture')
 
 image = cv2.cvtColor(orig_image, cv2.COLOR_BGR2RGB)
 boxes, labels, probs = predictor.predict(image, 10, 0.4)
@@ -51,7 +54,7 @@ for i in range(boxes.size(0)):
                 1,  # font scale
                 (255, 0, 255),
                 2)  # line type
-    complete_tuple_box_label_prob_list.append((box[0], box[1], box[2], box[3], labels[i], probs[i]))
+    complete_tuple_box_label_prob_list.append((box[0], box[1], box[2], box[3], class_names[labels[i]], probs[i]))
 
 now = datetime.now()
 dt_format = "%Y_%m_%d_%H_%M_%S"
@@ -61,9 +64,22 @@ cv2.imwrite(path, orig_image)
 print(f"Found {len(probs)} objects. The output image is {path}")
 
 # Sort for closest to the band
+
+
+def is_overlapping_1d(box1, box2):
+    box1_max = max(box1[0], box1[1])
+    box1_min = min(box1[0], box1[1])
+
+    box2_max = max(box2[0], box2[1])
+    box2_min = min(box2[0], box2[1])
+
+    return box1_max >= box2_min and box2_max >= box1_min
+
+
 complete_tuple_box_label_prob_list.sort(key=lambda x: x[0], reverse=True,)
 
 result_label_array = []
+
 for i in range(len(complete_tuple_box_label_prob_list)):
     current_detected_label = complete_tuple_box_label_prob_list[i][4]
     # Base Case
@@ -93,11 +109,6 @@ for i in range(len(complete_tuple_box_label_prob_list)):
         previous_ymin_box_bound = min(previous_y1_box_bound, previous_y2_box_bound)
         previous_xmax_box_bound = max(previous_x1_box_bound, previous_x2_box_bound)
         previous_ymax_box_bound = max(previous_y1_box_bound, previous_y2_box_bound)
-
-
-        def is_overlapping_1d(box1, box2):
-            return box1[1] >= box2[0] and box2[1] >= box1[0]
-
 
         current_box1 = {
             'x': (current_xmin_box_bound, current_xmax_box_bound),
@@ -142,9 +153,8 @@ for i in range(len(complete_tuple_box_label_prob_list)):
 result_path = '/jetson-inference/data/' + 'bags_trial.txt'
 if os.path.exists(result_path):
     os.remove(result_path)
-
+print(result_label_array)
 with open(result_path, 'w') as filehandle:
     filehandle.write('\n'.join(result_label_array))
 print('Job Success')
-
 
