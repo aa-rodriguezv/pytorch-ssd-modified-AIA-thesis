@@ -31,6 +31,7 @@ net.load(model_path)
 predictor = create_mobilenetv1_ssd_predictor(net, candidate_size=200)
 print('Loaded Model Successfully')
 
+# Connect Cammera Device
 cam_port = 0
 cam = cv2.VideoCapture(cam_port)
 print('Camera Connected')
@@ -39,6 +40,7 @@ print('Camera Connected')
 result, orig_image = cam.read()
 print('Took Picture')
 
+# Predict according to Model Loaded
 image = cv2.cvtColor(orig_image, cv2.COLOR_BGR2RGB)
 boxes, labels, probs = predictor.predict(image, 10, 0.4)
 complete_tuple_box_label_prob_list = []
@@ -76,10 +78,12 @@ def is_overlapping_1d(box1, box2):
     return box1_max >= box2_min and box2_max >= box1_min
 
 
+# Sort according to proximity to the Robot
 complete_tuple_box_label_prob_list.sort(key=lambda x: x[0], reverse=True,)
 
 result_label_array = []
 
+# Process Labels to send to Robot
 for i in range(len(complete_tuple_box_label_prob_list)):
     current_detected_label = complete_tuple_box_label_prob_list[i][4]
     # Base Case
@@ -130,14 +134,16 @@ for i in range(len(complete_tuple_box_label_prob_list)):
             previous_box2_x_size = previous_xmax_box_bound - previous_xmin_box_bound
             previous_box2_y_size = previous_ymax_box_bound - previous_ymin_box_bound
             previous_box2_area = previous_box2_x_size * previous_box2_y_size
-
+            # Know which base rectangle has the greatest area
             max_box_area = max(current_box1_area, previous_box2_area)
 
+            # Find out the Rectangle Coordinates that the boxes overlap
             max_of_min_x_bound = max(current_xmin_box_bound, previous_xmin_box_bound)
             max_of_min_y_bound = max(current_ymin_box_bound, previous_ymin_box_bound)
             min_of_max_x_bound = min(current_xmax_box_bound, previous_xmax_box_bound)
             min_of_max_y_bound = min(current_ymax_box_bound, previous_ymax_box_bound)
 
+            # Find out Overlapping Rectangle Area
             overlapping_box_x_size = min_of_max_x_bound - max_of_min_x_bound
             overlapping_box_y_size = min_of_max_y_bound - max_of_min_y_bound
             overlapping_box_area = overlapping_box_x_size * overlapping_box_y_size
@@ -150,6 +156,7 @@ for i in range(len(complete_tuple_box_label_prob_list)):
         else:
             result_label_array.append(current_detected_label)
 
+# Write file in shared space between Nano and Docker Container
 result_path = '/jetson-inference/data/' + 'bags_trial.txt'
 if os.path.exists(result_path):
     os.remove(result_path)
