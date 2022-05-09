@@ -5,7 +5,7 @@ from datetime import datetime
 from vision.ssd.mobilenetv1_ssd import create_mobilenetv1_ssd, create_mobilenetv1_ssd_predictor
 
 print(datetime.now())
-base_model_dir = 'models/coloredbags'
+base_model_dir = '/jetson-inference/python/training/detection/ssd/models/coloredbags'
 model_dir = os.path.expanduser(base_model_dir)
 
 # find the checkpoint with the lowest loss
@@ -79,89 +79,95 @@ def is_overlapping_1d(box1, box2):
 
 
 # Sort according to proximity to the Robot
-complete_tuple_box_label_prob_list.sort(key=lambda x: x[0], reverse=True,)
+complete_tuple_box_label_prob_list.sort(key=lambda x: x[0], reverse=False,)
 
 result_label_array = []
 
-# Process Labels to send to Robot
 for i in range(len(complete_tuple_box_label_prob_list)):
     current_detected_label = complete_tuple_box_label_prob_list[i][4]
-    # Base Case
-    if i == 0:
-        result_label_array.append(current_detected_label)
-    # Check if Labels are different (current from previous)
-    elif current_detected_label != complete_tuple_box_label_prob_list[i-1][4]:
-        result_label_array.append(current_detected_label)
-    # Check for Overlapping Boxes with the Same Label
-    else:
-        current_x1_box_bound = complete_tuple_box_label_prob_list[i][0]
-        current_y1_box_bound = complete_tuple_box_label_prob_list[i][1]
-        current_x2_box_bound = complete_tuple_box_label_prob_list[i][2]
-        current_y2_box_bound = complete_tuple_box_label_prob_list[i][3]
+    result_label_array.append(current_detected_label)
 
-        previous_x1_box_bound = complete_tuple_box_label_prob_list[i-1][0]
-        previous_y1_box_bound = complete_tuple_box_label_prob_list[i-1][1]
-        previous_x2_box_bound = complete_tuple_box_label_prob_list[i-1][2]
-        previous_y2_box_bound = complete_tuple_box_label_prob_list[i-1][3]
-
-        current_xmin_box_bound = min(current_x1_box_bound, current_x2_box_bound)
-        current_ymin_box_bound = min(current_y1_box_bound, current_y2_box_bound)
-        current_xmax_box_bound = max(current_x1_box_bound, current_x2_box_bound)
-        current_ymax_box_bound = max(current_y1_box_bound, current_y2_box_bound)
-
-        previous_xmin_box_bound = min(previous_x1_box_bound, previous_x2_box_bound)
-        previous_ymin_box_bound = min(previous_y1_box_bound, previous_y2_box_bound)
-        previous_xmax_box_bound = max(previous_x1_box_bound, previous_x2_box_bound)
-        previous_ymax_box_bound = max(previous_y1_box_bound, previous_y2_box_bound)
-
-        current_box1 = {
-            'x': (current_xmin_box_bound, current_xmax_box_bound),
-            'y': (current_ymin_box_bound, current_ymax_box_bound)
-        }
-        previous_box2 = {
-            'x': (previous_xmin_box_bound, previous_xmax_box_bound),
-            'y': (previous_ymin_box_bound, previous_ymax_box_bound)
-        }
-        overlap_x_axis = is_overlapping_1d(current_box1.x, previous_box2.x)
-        overlap_y_axis = is_overlapping_1d(current_box1.y, previous_box2.y)
-        boxes_overlap = overlap_x_axis and overlap_y_axis
-
-        if boxes_overlap:
-            current_box1_x_size = current_xmax_box_bound - current_xmin_box_bound
-            current_box1_y_size = current_ymax_box_bound - current_ymin_box_bound
-            current_box1_area = current_box1_x_size * current_box1_y_size
-
-            previous_box2_x_size = previous_xmax_box_bound - previous_xmin_box_bound
-            previous_box2_y_size = previous_ymax_box_bound - previous_ymin_box_bound
-            previous_box2_area = previous_box2_x_size * previous_box2_y_size
-            # Know which base rectangle has the greatest area
-            max_box_area = max(current_box1_area, previous_box2_area)
-
-            # Find out the Rectangle Coordinates that the boxes overlap
-            max_of_min_x_bound = max(current_xmin_box_bound, previous_xmin_box_bound)
-            max_of_min_y_bound = max(current_ymin_box_bound, previous_ymin_box_bound)
-            min_of_max_x_bound = min(current_xmax_box_bound, previous_xmax_box_bound)
-            min_of_max_y_bound = min(current_ymax_box_bound, previous_ymax_box_bound)
-
-            # Find out Overlapping Rectangle Area
-            overlapping_box_x_size = min_of_max_x_bound - max_of_min_x_bound
-            overlapping_box_y_size = min_of_max_y_bound - max_of_min_y_bound
-            overlapping_box_area = overlapping_box_x_size * overlapping_box_y_size
-
-            how_much_overlap = overlapping_box_area / max_box_area
-            # Area of Overlapping Box represents less than 50% of the Maximum Box Area (is not representative)
-            if how_much_overlap < 0.5:
-                result_label_array.append(current_detected_label)
-        # They do not overlap so they can be safely added
-        else:
+# Process Labels to send to Robot
+check_overlaps = False
+if check_overlaps == True:
+    result_label_array = []
+    for i in range(len(complete_tuple_box_label_prob_list)):
+        current_detected_label = complete_tuple_box_label_prob_list[i][4]
+        # Base Case
+        if i == 0:
             result_label_array.append(current_detected_label)
+        # Check if Labels are different (current from previous)
+        elif current_detected_label != complete_tuple_box_label_prob_list[i-1][4]:
+            result_label_array.append(current_detected_label)
+        # Check for Overlapping Boxes with the Same Label
+        else:
+            current_x1_box_bound = complete_tuple_box_label_prob_list[i][0]
+            current_y1_box_bound = complete_tuple_box_label_prob_list[i][1]
+            current_x2_box_bound = complete_tuple_box_label_prob_list[i][2]
+            current_y2_box_bound = complete_tuple_box_label_prob_list[i][3]
+
+            previous_x1_box_bound = complete_tuple_box_label_prob_list[i-1][0]
+            previous_y1_box_bound = complete_tuple_box_label_prob_list[i-1][1]
+            previous_x2_box_bound = complete_tuple_box_label_prob_list[i-1][2]
+            previous_y2_box_bound = complete_tuple_box_label_prob_list[i-1][3]
+
+            current_xmin_box_bound = min(current_x1_box_bound, current_x2_box_bound)
+            current_ymin_box_bound = min(current_y1_box_bound, current_y2_box_bound)
+            current_xmax_box_bound = max(current_x1_box_bound, current_x2_box_bound)
+            current_ymax_box_bound = max(current_y1_box_bound, current_y2_box_bound)
+
+            previous_xmin_box_bound = min(previous_x1_box_bound, previous_x2_box_bound)
+            previous_ymin_box_bound = min(previous_y1_box_bound, previous_y2_box_bound)
+            previous_xmax_box_bound = max(previous_x1_box_bound, previous_x2_box_bound)
+            previous_ymax_box_bound = max(previous_y1_box_bound, previous_y2_box_bound)
+
+            current_box1 = {
+                'x': (current_xmin_box_bound, current_xmax_box_bound),
+                'y': (current_ymin_box_bound, current_ymax_box_bound)
+            }
+            previous_box2 = {
+                'x': (previous_xmin_box_bound, previous_xmax_box_bound),
+                'y': (previous_ymin_box_bound, previous_ymax_box_bound)
+            }
+            overlap_x_axis = is_overlapping_1d(current_box1.x, previous_box2.x)
+            overlap_y_axis = is_overlapping_1d(current_box1.y, previous_box2.y)
+            boxes_overlap = overlap_x_axis and overlap_y_axis
+
+            if boxes_overlap:
+                current_box1_x_size = current_xmax_box_bound - current_xmin_box_bound
+                current_box1_y_size = current_ymax_box_bound - current_ymin_box_bound
+                current_box1_area = current_box1_x_size * current_box1_y_size
+
+                previous_box2_x_size = previous_xmax_box_bound - previous_xmin_box_bound
+                previous_box2_y_size = previous_ymax_box_bound - previous_ymin_box_bound
+                previous_box2_area = previous_box2_x_size * previous_box2_y_size
+                # Know which base rectangle has the greatest area
+                max_box_area = max(current_box1_area, previous_box2_area)
+
+                # Find out the Rectangle Coordinates that the boxes overlap
+                max_of_min_x_bound = max(current_xmin_box_bound, previous_xmin_box_bound)
+                max_of_min_y_bound = max(current_ymin_box_bound, previous_ymin_box_bound)
+                min_of_max_x_bound = min(current_xmax_box_bound, previous_xmax_box_bound)
+                min_of_max_y_bound = min(current_ymax_box_bound, previous_ymax_box_bound)
+
+                # Find out Overlapping Rectangle Area
+                overlapping_box_x_size = min_of_max_x_bound - max_of_min_x_bound
+                overlapping_box_y_size = min_of_max_y_bound - max_of_min_y_bound
+                overlapping_box_area = overlapping_box_x_size * overlapping_box_y_size
+
+                how_much_overlap = overlapping_box_area / max_box_area
+                # Area of Overlapping Box represents less than 50% of the Maximum Box Area (is not representative)
+                if how_much_overlap < 0.5:
+                    result_label_array.append(current_detected_label)
+            # They do not overlap so they can be safely added
+            else:
+                result_label_array.append(current_detected_label)
 
 # Write file in shared space between Nano and Docker Container
-result_path = '/jetson-inference/data/' + 'bags_trial.txt'
+result_path = '/jetson-inference/data/' + 'bags_final.txt'
 if os.path.exists(result_path):
     os.remove(result_path)
 print(result_label_array)
 with open(result_path, 'w') as filehandle:
     filehandle.write('\n'.join(result_label_array))
 print('Job Success')
-
